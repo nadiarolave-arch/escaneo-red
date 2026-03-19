@@ -1,33 +1,27 @@
 import socket
 import threading
 
-# Puertos que suelen dar información útil
-TARGET_PORTS = [21, 22, 80, 443, 445, 5000, 8000, 8080]
-TIMEOUT = 0.6
+# Configuración
+TARGET_PORTS = [21, 22, 80, 443, 445, 3306, 8080]
+TIMEOUT = 0.5
 
-def obtener_banner(sock):
-    """Intenta leer la presentación del servicio"""
+def check_port(ip, port):
     try:
-        return sock.recv(1024).decode().strip()
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(TIMEOUT)
+        result = sock.connect_ex((ip, port))
+        if result == 0:
+            print(f" [!] {ip}:{port} ABIERTO")
+        sock.close()
     except:
-        return "No revela banner"
+        pass
 
 def scan_ip(ip):
+    # Escaneamos directamente sin filtros raros
     for port in TARGET_PORTS:
-        try:
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.settimeout(TIMEOUT)
-            result = sock.connect_ex((ip, port))
-            
-            if result == 0:
-                banner = obtener_banner(sock)
-                print(f"[!] {ip} -> Puerto {port} ABIERTO | Info: {banner}")
-            sock.close()
-        except:
-            pass
+        check_port(ip, port)
 
 def main():
-    # Obtener IP local de forma inteligente
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     s.connect(("8.8.8.8", 80))
     ip_local = s.getsockname()[0]
@@ -49,6 +43,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
