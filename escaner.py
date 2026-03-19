@@ -1,24 +1,41 @@
-"""
-Monitor de Dispositivos en Red Local
-====================================
-Script sencillo para listar dispositivos conectados.
-Nota: Ejecución optimizada para entornos sin permisos de root.
-"""
+import socket
+from datetime import datetime
 
-def escanear_red():
-    # Simulacion de escaneo para evitar errores de red en Android
-    print("Iniciando búsqueda de dispositivos en la red...")
-    dispositivos = [
-        {"ip": "192.168.1.1", "mac": "00:1A:2B:3C:4D:5E"},
-        {"ip": "192.168.1.15", "mac": "AA:BB:CC:DD:EE:FF"}
-    ]
-    return dispositivos
+def escanear_ip(ip):
+    # Intentamos conectar al puerto 80 (común en routers y dispositivos)
+    # Si el puerto está cerrado pero el host existe, connect_ex suele dar error distinto a host no encontrado
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    socket.setdefaulttimeout(0.05) # Tiempo de espera muy corto
+    resultado = s.connect_ex((ip, 80))
+    s.close()
+    return resultado == 0
 
-if __name__ == "__main__":
-    print("--- Escáner de Red Activo ---")
-    resultados = escanear_red()
-    for dev in resultados:
-        print(f"Dispositivo encontrado: IP {dev['ip']} | MAC {dev['mac']}")
-    print("--- Escaneo Finalizado ---")
+# Detectar tu IP local automáticamente
+def obtener_mi_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('8.8.8.8', 1))
+        ip = s.getsockname()[0]
+    except Exception:
+        ip = '127.0.0.1'
+    finally:
+        s.close()
+    return ip
+
+mi_ip = obtener_mi_ip()
+base_red = ".".join(mi_ip.split('.')[:-1])
+
+print(f"--- Escaneando red: {base_red}.x ---")
+print(f"Inicio: {datetime.now().strftime('%H:%M:%S')}\n")
+
+for i in range(1, 255):
+    ip_objetivo = f"{base_red}.{i}"
+    if escanear_ip(ip_objetivo):
+        print(f"[+] Dispositivo activo encontrado en: {ip_objetivo}")
+
+print(f"\nEscaneo finalizado: {datetime.now().strftime('%H:%M:%S')}")
+
+
+
 
 
