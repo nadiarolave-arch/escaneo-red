@@ -1,39 +1,57 @@
 import socket
-from datetime import datetime
+import threading
 
-def escanear_ip(ip):
-    # Intentamos conectar al puerto 80 (común en routers y dispositivos)
-    # Si el puerto está cerrado pero el host existe, connect_ex suele dar error distinto a host no encontrado
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    socket.setdefaulttimeout(0.05) # Tiempo de espera muy corto
-    resultado = s.connect_ex((ip, 80))
-    s.close()
-    return resultado == 0
+# Puertos que suelen dar información útil
+TARGET_PORTS = [21, 22, 80, 443, 445, 5000, 8000, 8080]
+TIMEOUT = 0.6
 
-# Detectar tu IP local automáticamente
-def obtener_mi_ip():
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+def obtener_banner(sock):
+    """Intenta leer la presentación del servicio"""
     try:
-        s.connect(('8.8.8.8', 1))
-        ip = s.getsockname()[0]
-    except Exception:
-        ip = '127.0.0.1'
-    finally:
-        s.close()
-    return ip
+        return sock.recv(1024).decode().strip()
+    except:
+        return "No revela banner"
 
-mi_ip = obtener_mi_ip()
-base_red = ".".join(mi_ip.split('.')[:-1])
+def scan_ip(ip):
+    for port in TARGET_PORTS:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(TIMEOUT)
+            result = sock.connect_ex((ip, port))
+            
+            if result == 0:
+                banner = obtener_banner(sock)
+                print(f"[!] {ip} -> Puerto {port} ABIERTO | Info: {banner}")
+            sock.close()
+        except:
+            pass
 
-print(f"--- Escaneando red: {base_red}.x ---")
-print(f"Inicio: {datetime.now().strftime('%H:%M:%S')}\n")
+def main():
+    # Obtener IP local de forma inteligente
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.connect(("8.8.8.8", 80))
+    ip_local = s.getsockname()[0]
+    s.close()
+    
+    base_net = ".".join(ip_local.split('.')[:-1])
+    print(f"--- Escaneando red: {base_net}.0/24 ---")
+    
+    threads = []
+    for i in range(1, 255):
+        ip = f"{base_net}.{i}"
+        t = threading.Thread(target=scan_ip, args=(ip,))
+        threads.append(t)
+        t.start()
 
-for i in range(1, 255):
-    ip_objetivo = f"{base_red}.{i}"
-    if escanear_ip(ip_objetivo):
-        print(f"[+] Dispositivo activo encontrado en: {ip_objetivo}")
+    for t in threads:
+        t.join()
+    print("\n--- Escaneo finalizado ---")
 
-print(f"\nEscaneo finalizado: {datetime.now().strftime('%H:%M:%S')}")
+if __name__ == "__main__":
+    main()
+
+
+
 
 
 
